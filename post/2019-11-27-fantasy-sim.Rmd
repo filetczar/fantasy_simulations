@@ -1,0 +1,133 @@
+---
+title: "Who's Making the Fantasy Playoffs?"
+author: "Phil Azar"
+date: "2019-11-27"
+output: html_document
+slug: fantasy-simulation
+categories: 
+- Sports
+tags: ['Monte Carlo', 'Fantasy Football']
+description: "There's always a chance. Unless you're Raz."
+ReadingTime: 2
+---
+
+```{r setup, include=FALSE, echo =FALSE, message=FALSE, warning=FALSE}
+library(data.table)
+library(dplyr)
+library(formattable)
+library(readr)
+data = read_csv('/Users/acazar/Desktop/blog/projects/fantasy_football_sim/data/simulation_df.csv')
+team_clean_names <- c('Raz Top/Shea Bottom', 'Black Panthers 2', "Fraiser's Cranes",
+                      'Humongous Melonheads','Ice Cold Cruisers', "Kuppin' My Sacko", 
+                      "Rushin' Roulette","St. Louis Stallions" ,"Strokin' My Ditka", "The Jones's", 
+                      "The Adams Family", "Tommy H***ty")
+data$team_name <- team_clean_names
+```
+
+Fantasy football is a complete waste of time, advances you in no way in life, and is a ton of fun. Part of the fun is playing the role of General Manager. You are in complete control. You can trade players like the kids of yesteryear trading cards. You can bench your quarterback until he learns from his latest interception. You can pickup running backs off the waiver wire like they're goddamn mints at a nice restaurant. Free and have as many as you can fit in your pockets. All of this control adds up to fantasy football feeling like a skill. You and you alone own the destiny of your franchise.
+
+
+The truth of fantasy football is that you're not a reincarnation of John Madden (who I assume is dead and will not fact check). It's mostly luck and randomness. We have zero say in the plays calling or the flow of the game. Any fantasy football manager who has hopelessly watched his kicker's team go for it on 4 and 3 in the redzone knows this. 
+
+This week is my fantasy league's final week of the regular season with 7 teams vying for 6 playoff spots. Accepting the randomness of fantasy football, I ran 10,000 monte carlo simulations of how this week will play out based on each team's historical performance. It was a complete waste of time, advanced my life in no way, and it was a ton of fun. 
+
+#### The Current Standings and Matchups 
+
+The standings are based on overall record with points scored (Pts For) as the tie-breaker. The top 6 teams will make the playoffs. Below are the current standings and matchups heading into the final week of the regular season. 
+
+![League Standings](/images/ff_standings_real.png)
+![Week 13 Match Ups](/images/ff_matchups.png)
+
+
+#### Probability of Making the Playoffs after Week 13 
+
+After running 10,000 Monte Carlo simulations based on the average points scored, recent performance trend and expected points to score this week for every team, we can get a probability estimate of winning this week, making the playoffs and the average seed after Week 12. 
+
+```{r mp_graph, echo=FALSE}
+custom_green0 = '#DeF7E9'
+custom_greenN = '#71CA97'
+chart_data <- data %>% 
+                  select(team_name, pct_win_week, pct_make_playoffs, avg_seed) %>% 
+                  arrange(avg_seed, desc(pct_make_playoffs), desc(pct_win_week)) %>% 
+                  rename('Team' = team_name, 
+                         'Win This Week' = pct_win_week, 
+                         'Make Playoffs' = pct_make_playoffs, 
+                         'Average Seed' = avg_seed)
+
+
+
+formattable(chart_data, 
+            align = c('l','l','l', 'c'), 
+            list(
+                 
+                 `Win This Week` = formatter("span", 
+                                             x ~ scales::percent(x),
+                                             style = function(x) style(display = "inline-block", 
+                                  direction = "rtl", 
+                                  `border-radius` = "4px", 
+                                  `padding-right` = "2px", 
+                                   `text-align` = 'right',
+                                    `background-color` = csscolor(custom_greenN), 
+                                  width = percent(proportion(as.numeric(x),)))),
+                 `Make Playoffs` = formatter("span", 
+                                             x ~ scales::percent(x),
+                                             style = function(x) style(display = "inline-block", 
+                                  direction = "rtl", 
+                                  `border-radius` = "4px", 
+                                  `padding-right` = "2px", 
+                                   `text-align` = 'right',
+                                    `background-color` = csscolor(custom_greenN), 
+                                  width = percent(proportion(as.numeric(x),))))
+                 ))
+                  
+                  
+
+```
+
+
+Three teams - Kuppin' My Sacko, Rushin' Roulette and Raz Top/Shea Bottom - have already made the playoffs, with The Addams Family and The Jones's almost a sure thing. The real race comes down to the St. Louis Stallions (my franchise) and Fraiser's Cranes vying for the 6th spot. The Stallions enter this week with a single win ahead of Fraiser's Cranes, but with only a 12% of winning this week versus Fraiser's Cranes 59% likelihood, the Cranes hold the advantage. In most simulations, the Cranes nudge out the Stallions based on the points scored tie-breaker. The Cranes own a 217 point advantage entering Week 13, which, unless Aaron Rodgers throws for 17 touchdowns, looks like will hold.  
+
+#### Breakdown of Probabilities by Seed 
+```{r seed_chart, echo=FALSE}
+custom_green0 = '#aadfc1'
+custom_greenN = '#71CA97'
+seed_chart_data <- data %>% 
+                  filter(pct_make_playoffs > 0) %>% 
+                  select(team_name, pct_first, pct_sec, pct_third, pct_fourth, pct_fifth, pct_sixth,  pct_make_playoffs) %>% 
+                  arrange(desc(pct_make_playoffs), desc(pct_first), desc(pct_sec), desc(pct_third)) %>% 
+                  rename('Team' = team_name, 
+                         '1st Seed' = pct_first, 
+                         '2nd'= pct_sec, 
+                         '3rd' = pct_third, 
+                         '4th' = pct_fourth, 
+                         '5th' = pct_fifth, 
+                         '6th' = pct_sixth, 
+                         'Make Playoffs' = pct_make_playoffs,)
+custom_formatter = formatter(
+              'span', 
+              x ~ scales::percent(x), 
+              style =  x ~ style(color = ifelse(x > .05, custom_greenN, ifelse(x >= .01, custom_green0, 
+                                                '#808080')), 
+                                 font.weight = ifelse(x > 0, 'bold', 'italic'))
+            )
+formattable(seed_chart_data, 
+            align = c('l', rep('c', 7)),
+            list(
+                `1st Seed` = custom_formatter, 
+                 `2nd` = custom_formatter, 
+                 `3rd` = custom_formatter, 
+                 `4th` = custom_formatter, 
+                 `5th` = custom_formatter, 
+                 `6th` = custom_formatter, 
+                `Make Playoffs` = formatter('span', 
+                                             x ~scales::percent(x),
+                                             style = x ~style(font.weight = 'bold'))))
+```
+
+
+The real nail biter heading into this week is how the seeds could potentially fall out, and it appears almost any scenario is possible. The standings are tight and points were a big determinant in the final standings. Rushin' Roulette, for example, could enter the playoffs seeded anywhere from 1st to 6th, while Kuppin my Sacko looks to be as comfortable as their name suggests. Although an outsider, the Stallions - the 2015 Champions and Owner of the Year Award recipient - have a 1% of sneaking into the 3rd seed. 
+
+Simulations assign a probability to each possible scenario in our final week of the regular season. These probabilities defer definitiveness to the world of uncertainty. But one thing is certain - our friendship that has held these league together for 6 seasons. And that Raz (Ice Cold Cruisers) sucks at fantasy football. That is certain too. 
+
+
+
